@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Stock Photo Title, Keyword & Description Generator (Phototag.ai Style)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .container {
+            max-width: 1024px; /* Slightly wider container */
+            width: 100%;
+            background-color: #ffffff;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 0px 10px -5px rgba(0, 0, 0, 0.04); /* More subtle shadow */
+            border-radius: 1.5rem; /* More rounded corners */
+            padding: 2.5rem; /* Increased padding */
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+        .drag-area {
+            border: 2px dashed #cbd5e1; /* Light gray dashed border */
+            border-radius: 1rem;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+        }
+        .drag-area.hover {
+            background-color: #e0f2fe; /* Light blue on hover */
+            border-color: #3b82f6; /* Blue border on hover */
+        }
+        .drag-area input[type="file"] {
+            display: none; /* Hide the default file input */
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Style for individual result cards to match a cleaner look */
+        .result-card {
+            border: none; /* Remove border from results cards */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); /* Subtle shadow */
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            background-color: #f9fafb; /* Lighter background for result cards */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-4xl font-extrabold text-center text-gray-900">
+            <span class="text-blue-600">AI Stock Photo</span> Metadata Generator
+        </h1>
+        <p class="text-center text-gray-600 -mt-4 text-lg">Generate SEO-friendly titles, descriptions & top-ranking keywords instantly.</p>
+
+        <!-- Input Section -->
+        <div class="space-y-6">
+            <div id="dragArea" class="drag-area bg-white text-gray-700">
+                <input type="file" id="imageUpload" accept="image/*" multiple>
+                <p class="font-semibold text-lg mb-2">Drag & Drop Your Photos Here</p>
+                <p class="text-sm text-gray-500 mb-4">or click to browse files</p>
+                <button class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-5 rounded-lg text-base transition duration-200 ease-in-out">
+                    Browse Files
+                </button>
+            </div>
+
+            <div id="imagePreviewsContainer" class="flex flex-wrap gap-4 mt-4 justify-center">
+                <!-- Image previews will be dynamically added here -->
+            </div>
+
+            <label for="imageDescription" class="block text-lg font-medium text-gray-700">Optional: Add a general description for all photos:</label>
+            <textarea id="imageDescription" rows="3" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800 placeholder-gray-400 focus:outline-none"></textarea>
+
+            <div class="flex flex-col sm:flex-row gap-4">
+                <button id="generateBtn" class="w-full sm:w-1/2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center justify-center">
+                    <span id="buttonText">Generate All Metadata</span>
+                    <div id="loadingSpinner" class="loading-spinner hidden ml-3"></div>
+                </button>
+                <button id="clearAllBtn" class="w-full sm:w-1/2 bg-gray-400 hover:bg-gray-500 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center justify-center hidden">
+                    Clear All
+                </button>
+            </div>
+        </div>
+
+        <!-- Output Section -->
+        <div id="outputSection" class="hidden space-y-6">
+            <h2 class="text-2xl font-semibold text-gray-800">Generated Results:</h2>
+
+            <div id="resultsContainer" class="space-y-6">
+                <!-- Individual image results will be dynamically added here -->
+            </div>
+
+            <!-- Download Button -->
+            <button id="downloadMetadataBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center justify-center">
+                Download All Metadata (.txt)
+            </button>
+
+            <div id="messageBox" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg relative" role="alert">
+                <strong class="font-bold">Success!</strong>
+                <span class="block sm:inline" id="messageText"></span>
+                <span class="absolute top-0 bottom-0 right-0 px-4 py-3 cursor-pointer" onclick="document.getElementById('messageBox').classList.add('hidden')">
+                    <svg class="fill-current h-6 w-6 text-green-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><title>Close</title><path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 2.651a1.2 1.2 0 1 1-1.697-1.697L8.303 10l-2.651-2.651a1.2 1.2 0 0 1 1.697-1.697L10 8.181l2.651-2.651a1.2 1.2 0 0 1 1.697 1.697L11.697 10l2.651 2.651a1.2 1.2 0 0 1 0 1.698z"/></svg>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const imageUploadInput = document.getElementById('imageUpload');
+        const dragArea = document.getElementById('dragArea'); // New: Drag area element
+        const imagePreviewsContainer = document.getElementById('imagePreviewsContainer');
+        const imageDescriptionInput = document.getElementById('imageDescription');
+        const generateBtn = document.getElementById('generateBtn');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        const outputSection = document.getElementById('outputSection');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const buttonText = document.getElementById('buttonText');
+        const downloadMetadataBtn = document.getElementById('downloadMetadataBtn');
+        const messageBox = document.getElementById('messageBox');
+        const messageText = document.getElementById('messageText');
+        const resultsContainer = document.getElementById('resultsContainer');
+
+        let uploadedImages = []; // Stores objects: { file, base64, filename, resultTitle, resultDescription, resultKeywords }
+
+        // Function to show a temporary message
+        function showMessage(message, type = 'success') {
+            messageText.textContent = message;
+            messageBox.classList.remove('hidden', 'bg-green-100', 'border-green-400', 'text-green-700', 'bg-red-100', 'border-red-400', 'text-red-700');
+            if (type === 'error') {
+                messageBox.classList.add('bg-red-100', 'border-red-400', 'text-red-700');
+            } else {
+                messageBox.classList.add('bg-green-100', 'border-green-400', 'text-green-700');
+            }
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 3000); // Hide after 3 seconds
+        }
+
+        // Function to copy text to clipboard
+        function copyToClipboard(text, successMessage) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showMessage(successMessage);
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+                showMessage('Failed to copy text.', 'error');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        // Function to process files (from input or drag-drop)
+        function processFiles(files) {
+            imagePreviewsContainer.innerHTML = ''; // Clear previous previews
+            uploadedImages = []; // Clear previous images
+
+            if (files.length > 0) {
+                clearAllBtn.classList.remove('hidden');
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    if (!file.type.startsWith('image/')) {
+                        showMessage(`Skipping non-image file: ${file.name}`, 'error');
+                        continue;
+                    }
+
+                    const reader = new FileReader();
+
+                    reader.onload = (e) => {
+                        const base64Data = e.target.result.split(',')[1];
+                        uploadedImages.push({
+                            file: file,
+                            base64: base64Data,
+                            filename: file.name,
+                            id: `image-${Date.now()}-${i}` // Unique ID for each image result
+                        });
+
+                        const previewDiv = document.createElement('div');
+                        previewDiv.className = 'relative w-32 h-32 bg-gray-100 rounded-lg flex flex-col items-center justify-center shadow-sm overflow-hidden border border-gray-200';
+                        previewDiv.innerHTML = `
+                            <img src="${e.target.result}" alt="${file.name}" class="max-w-full max-h-full object-contain rounded-md">
+                            <span class="absolute bottom-0 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 rounded-b-lg w-full text-center truncate">${file.name}</span>
+                        `;
+                        imagePreviewsContainer.appendChild(previewDiv);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            } else {
+                clearAllBtn.classList.add('hidden');
+            }
+        }
+
+
+        // Handle multiple image file selection and preview
+        imageUploadInput.addEventListener('change', (event) => {
+            processFiles(event.target.files);
+        });
+
+        // Drag and Drop Event Listeners
+        dragArea.addEventListener('click', () => {
+            imageUploadInput.click(); // Trigger file input click when drag area is clicked
+        });
+
+        dragArea.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            dragArea.classList.add('hover');
+        });
+
+        dragArea.addEventListener('dragleave', () => {
+            dragArea.classList.remove('hover');
+        });
+
+        dragArea.addEventListener('drop', (event) => {
+            event.preventDefault();
+            dragArea.classList.remove('hover');
+            processFiles(event.dataTransfer.files);
+        });
+
+
+        clearAllBtn.addEventListener('click', () => {
+            uploadedImages = [];
+            imageUploadInput.value = ''; // Clear file input
+            imagePreviewsContainer.innerHTML = '';
+            resultsContainer.innerHTML = '';
+            outputSection.classList.add('hidden');
+            clearAllBtn.classList.add('hidden');
+            imageDescriptionInput.value = ''; // Clear general description
+            showMessage('All inputs and results cleared.');
+        });
+
+
+        generateBtn.addEventListener('click', async () => {
+            const generalDescription = imageDescriptionInput.value.trim();
+
+            if (uploadedImages.length === 0 && !generalDescription) {
+                showMessage('Please upload photos or provide a general description.', 'error');
+                return;
+            }
+
+            // Show loading state
+            generateBtn.disabled = true;
+            buttonText.textContent = 'Generating...';
+            loadingSpinner.classList.remove('hidden');
+            outputSection.classList.add('hidden'); // Hide previous results
+            resultsContainer.innerHTML = ''; // Clear previous individual results
+
+            let successfulGenerations = 0;
+
+            for (const imageData of uploadedImages) {
+                // Create a placeholder for each image's results
+                const resultCard = document.createElement('div');
+                resultCard.id = imageData.id; // Assign the unique ID
+                resultCard.className = 'result-card bg-white space-y-4'; /* Use the new class */
+                resultCard.innerHTML = `
+                    <h3 class="text-xl font-semibold text-gray-800 flex items-center">
+                        <img src="${URL.createObjectURL(imageData.file)}" alt="Preview" class="w-12 h-12 object-contain rounded-md mr-3 border border-gray-200">
+                        ${imageData.filename}
+                        <div class="loading-spinner ml-4"></div>
+                    </h3>
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="text-md font-medium text-gray-700">Title:</h4>
+                            <button class="copy-button bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-1 px-2 rounded-md text-xs transition duration-200 ease-in-out" data-target="title-${imageData.id}">Copy</button>
+                        </div>
+                        <p id="title-${imageData.id}" class="text-gray-900 text-base break-words">Generating...</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="text-md font-medium text-gray-700">Description:</h4>
+                            <button class="copy-button bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-1 px-2 rounded-md text-xs transition duration-200 ease-in-out" data-target="description-${imageData.id}">Copy</button>
+                        </div>
+                        <p id="description-${imageData.id}" class="text-gray-900 text-base break-words">Generating...</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="text-md font-medium text-gray-700">Keywords:</h4>
+                            <button class="copy-button bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-1 px-2 rounded-md text-xs transition duration-200 ease-in-out" data-target="keywords-${imageData.id}">Copy</button>
+                        </div>
+                        <p id="keywords-${imageData.id}" class="text-gray-900 text-base break-words">Generating...</p>
+                    </div>
+                `;
+                resultsContainer.appendChild(resultCard);
+                outputSection.classList.remove('hidden'); // Show output section as soon as first card is added
+
+                try {
+                    let chatHistory = [];
+                    let parts = [];
+
+                    parts.push({
+                        inlineData: {
+                            mimeType: imageData.file.type,
+                            data: imageData.base64
+                        }
+                    });
+
+                    // Updated prompt to include description request
+                    let textPrompt = `Generate a highly accurate, compelling, and exceptionally SEO-friendly title (maximum 10 words) for a stock photo, explicitly incorporating high-volume, trending, and top-ranking search terms. Also, generate a concise and relevant description (max 2-3 sentences) AND a comprehensive list of exactly 30 commercially valuable, top-ranking keywords highly relevant to stock photography platforms.`;
+                    if (generalDescription) {
+                        textPrompt += ` Consider the general context: ${generalDescription}.`;
+                    }
+                    textPrompt += ` Provide the output in JSON format with three keys: "title" (string), "description" (string), and "keywords" (array of strings).`;
+
+                    parts.push({ text: textPrompt });
+                    chatHistory.push({ role: "user", parts: parts });
+
+                    const payload = {
+                        contents: chatHistory,
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            responseSchema: {
+                                type: "OBJECT",
+                                properties: {
+                                    "title": { "type": "STRING" },
+                                    "description": { "type": "STRING" }, // New: description property
+                                    "keywords": {
+                                        "type": "ARRAY",
+                                        "items": { "type": "STRING" }
+                                    }
+                                },
+                                "propertyOrdering": ["title", "description", "keywords"] // Update property ordering
+                            }
+                        }
+                    };
+
+                    const apiKey = ""; // Canvas will provide this at runtime
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await response.json();
+
+                    const titleElement = document.getElementById(`title-${imageData.id}`);
+                    const descriptionElement = document.getElementById(`description-${imageData.id}`); // New: description element
+                    const keywordsElement = document.getElementById(`keywords-${imageData.id}`);
+                    const cardSpinner = resultCard.querySelector('.loading-spinner');
+
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const jsonString = result.candidates[0].content.parts[0].text;
+                        const parsedJson = JSON.parse(jsonString);
+
+                        imageData.resultTitle = parsedJson.title || 'No title generated.';
+                        imageData.resultDescription = parsedJson.description || 'No description generated.'; // Store description
+                        imageData.resultKeywords = parsedJson.keywords ? parsedJson.keywords.join(', ') : 'No keywords generated.';
+
+                        titleElement.textContent = imageData.resultTitle;
+                        descriptionElement.textContent = imageData.resultDescription; // Display description
+                        keywordsElement.textContent = imageData.resultKeywords;
+                        successfulGenerations++;
+                    } else {
+                        console.error(`Unexpected API response structure for ${imageData.filename}:`, result);
+                        titleElement.textContent = 'Error generating title.';
+                        descriptionElement.textContent = 'Error generating description.';
+                        keywordsElement.textContent = 'Error generating keywords.';
+                    }
+                    cardSpinner.classList.add('hidden'); // Hide spinner for this card
+
+                } catch (error) {
+                    console.error(`Error generating content for ${imageData.filename}:`, error);
+                    const titleElement = document.getElementById(`title-${imageData.id}`);
+                    const descriptionElement = document.getElementById(`description-${imageData.id}`);
+                    const keywordsElement = document.getElementById(`keywords-${imageData.id}`);
+                    const cardSpinner = resultCard.querySelector('.loading-spinner');
+
+                    titleElement.textContent = 'Failed to generate (network error).';
+                    descriptionElement.textContent = 'Failed to generate (network error).';
+                    keywordsElement.textContent = 'Failed to generate (network error).';
+                    cardSpinner.classList.add('hidden'); // Hide spinner
+                }
+            }
+
+            // Add event listeners for copy buttons after all results are rendered
+            document.querySelectorAll('.copy-button').forEach(button => {
+                button.onclick = (e) => {
+                    const targetId = e.target.dataset.target;
+                    const textToCopy = document.getElementById(targetId).textContent;
+                    copyToClipboard(textToCopy, `Copied ${targetId.includes('title') ? 'title' : targetId.includes('description') ? 'description' : 'keywords'}!`);
+                };
+            });
+
+
+            // Final state
+            generateBtn.disabled = false;
+            buttonText.textContent = 'Generate All Metadata';
+            loadingSpinner.classList.add('hidden');
+
+            if (successfulGenerations > 0) {
+                showMessage(`Successfully generated metadata for ${successfulGenerations} image(s).`);
+            } else {
+                showMessage('No metadata could be generated. Please check your inputs.', 'error');
+            }
+        });
+
+        // Event listener for the new Download Metadata button
+        downloadMetadataBtn.addEventListener('click', () => {
+            if (uploadedImages.length === 0) {
+                showMessage('Please generate metadata for images first.', 'error');
+                return;
+            }
+
+            let allMetadataContent = '';
+            uploadedImages.forEach((imageData, index) => {
+                if (imageData.resultTitle && imageData.resultDescription && imageData.resultKeywords) {
+                    allMetadataContent += `--- IMAGE ${index + 1}: ${imageData.filename} ---\n`;
+                    allMetadataContent += `Title: ${imageData.resultTitle}\n`;
+                    allMetadataContent += `Description: ${imageData.resultDescription}\n`; // Include description
+                    allMetadataContent += `Keywords: ${imageData.resultKeywords}\n\n`;
+                }
+            });
+
+            if (allMetadataContent.trim() === '') {
+                showMessage('No metadata available to download.', 'error');
+                return;
+            }
+
+            // Create a Blob from the content
+            const blob = new Blob([allMetadataContent], { type: 'text/plain' });
+
+            // Create a temporary URL for the Blob
+            const url = URL.createObjectURL(blob);
+
+            // Create a temporary anchor element for download
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'all_stock_photo_metadata.txt'; // Suggested filename
+            document.body.appendChild(a); // Append to body (required for Firefox)
+            a.click(); // Programmatically click the anchor to trigger download
+
+            // Clean up: remove the anchor and revoke the URL
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showMessage('All metadata downloaded successfully!');
+        });
+    </script>
+</body>
+</html>
