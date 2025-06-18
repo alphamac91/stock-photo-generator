@@ -344,7 +344,8 @@
                         }
                     };
 
-                    const apiKey = ""; // Canvas will provide this at runtime
+                    // IMPORTANT: Replace "YOUR_GEMINI_API_KEY_HERE" with your actual Gemini API Key
+                    const apiKey = "AIzaSyABwhZCl1RhxMqDJF0knwRMyxa708bbhik"; 
                     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
                     const response = await fetch(apiUrl, {
